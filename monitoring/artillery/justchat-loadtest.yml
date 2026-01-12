@@ -1,0 +1,52 @@
+config:
+  target: "https://www.justchat.space"
+  payload:
+    path: "users.csv"
+    fields: ["email", "password", "fullName"]
+    order: "random"
+  phases:
+    # Ramp up to 300 concurrent users over 5 minutes
+    - duration: 300
+      arrivalRate: 1
+      name: "Ramp to 300 concurrent users"
+    # Sustain 300 concurrent users for 10 minutes
+    - duration: 600
+      arrivalRate: 0
+      name: "Sustain 300 concurrent authenticated users"
+  defaults:
+    headers:
+      User-Agent: "Artillery - justchat.space authenticated load test"
+scenarios:
+  - name: "Authenticated user session"
+    flow:
+      # Signup new user with credentials from CSV
+      - post:
+          url: "/api/auth/signup"
+          json:
+            email: "{{ email }}"
+            password: "{{ password }}"
+            fullName: "{{ fullName }}"
+          capture:
+            - json: "$.accessToken"
+              as: "authToken"
+      - think: 2
+      # Check authentication status
+      - get:
+          url: "/api/auth/check"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      - think: 5
+      # Fetch user's chats
+      - get:
+          url: "/api/chats"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+      - think: 10
+      # Simulate user staying active - periodic chat list refresh
+      - loop:
+          - get:
+              url: "/api/chats"
+              headers:
+                Authorization: "Bearer {{ authToken }}"
+          - think: 30
+        count: 20
