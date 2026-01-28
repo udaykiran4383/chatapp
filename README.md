@@ -78,4 +78,3 @@ docker-compose -f docker-compose.app.yml up --build
 - `npm run dev:frontend`: Start frontend development server.
 - `npm run build:frontend`: Build frontend for production.
 - `npm run lint:frontend`: Lint frontend code.
-

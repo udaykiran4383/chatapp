@@ -1,51 +1,35 @@
-import s3Service from "../lib/s3.js";
+import cloudinary from "../lib/cloudinary.js";
 
 /**
- * Generate presigned URL for file upload
- * POST /api/files/presign
+ * Upload file to Cloudinary
+ * POST /api/files/upload
  */
-export const generatePresignedUrl = async (req, res) => {
+export const uploadFile = async (req, res) => {
   try {
-    const { fileName, contentType } = req.body;
+    const { fileData, fileName, contentType } = req.body;
 
-    if (!fileName || !contentType) {
+    if (!fileData) {
       return res.status(400).json({
-        error: "fileName and contentType are required",
+        error: "fileData is required",
       });
     }
 
-    // Validate file size (optional - can be enforced on S3 bucket policy)
-    const maxFileSize = 10 * 1024 * 1024; // 10MB
-    if (req.body.fileSize && req.body.fileSize > maxFileSize) {
-      return res.status(400).json({
-        error: "File size exceeds 10MB limit",
-      });
-    }
-
-    // Get file metadata
-    const metadata = s3Service.getFileMetadata(fileName, contentType);
-
-    // Generate presigned URL
-    const { uploadUrl, fileUrl, fileKey, expiresAt } =
-      await s3Service.generatePresignedUploadUrl(fileName, contentType);
+    // Upload to Cloudinary
+    const uploadResponse = await cloudinary.uploader.upload(fileData, {
+      resource_type: "auto", // Detects image/video/raw
+      public_id: `chatapp_uploads/${Date.now()}_${fileName}`, // Optional: organized folder
+    });
 
     res.status(200).json({
-      uploadUrl,
-      fileUrl,
-      fileKey,
-      expiresAt,
-      metadata,
-      instructions: {
-        method: "PUT",
-        headers: {
-          "Content-Type": contentType,
-        },
-        note: "Upload the file directly to uploadUrl using PUT request",
-      },
+      url: uploadResponse.secure_url,
+      name: fileName,
+      size: uploadResponse.bytes,
+      type: contentType,
+      storage: "cloudinary",
     });
   } catch (error) {
-    console.error("Error in generatePresignedUrl:", error);
-    res.status(500).json({ error: "Failed to generate presigned URL" });
+    console.error("Error in uploadFile:", error);
+    res.status(500).json({ error: "Failed to upload file" });
   }
 };
 

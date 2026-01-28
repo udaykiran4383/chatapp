@@ -1,6 +1,6 @@
 import express from "express";
 import {
-  generatePresignedUrl,
+  uploadFile,
   generateDownloadUrl,
   getFileStats,
 } from "../controllers/file.controller.js";
@@ -8,8 +8,8 @@ import { protectRoute } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-// Generate presigned URL for uploading files
-router.post("/presign", protectRoute, generatePresignedUrl);
+// Upload file to Cloudinary
+router.post("/upload", protectRoute, uploadFile);
 
 // Generate presigned URL for downloading files (if needed)
 router.get("/download/:fileKey", protectRoute, generateDownloadUrl);

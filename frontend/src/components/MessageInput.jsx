@@ -59,37 +59,26 @@ const MessageInput = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const uploadFileToS3 = async (file) => {
-    try {
-      // Step 1: Get presigned URL from backend
-      const presignResponse = await axiosInstance.post("/files/presign", {
-        fileName: file.name,
-        contentType: file.type,
-        fileSize: file.size,
-      });
-
-      const { uploadUrl, fileUrl } = presignResponse.data;
-
-      // Step 2: Upload file directly to S3
-      await fetch(uploadUrl, {
-        method: "PUT",
-        headers: {
-          "Content-Type": file.type,
-        },
-        body: file,
-      });
-
-      return {
-        url: fileUrl,
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        storage: "s3",
+  const uploadFileToCloudinary = async (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        const base64Data = reader.result;
+        try {
+          const response = await axiosInstance.post("/files/upload", {
+            fileData: base64Data,
+            fileName: file.name,
+            contentType: file.type
+          });
+          resolve(response.data);
+        } catch (error) {
+          console.error("Cloudinary upload failed:", error);
+          reject(error);
+        }
       };
-    } catch (error) {
-      console.error("S3 upload failed:", error);
-      throw error;
-    }
+      reader.onerror = (error) => reject(error);
+    });
   };
 
   const handleSendMessage = async (e) => {
@@ -110,7 +99,7 @@ const MessageInput = () => {
 
       await sendMessage({
         text: text.trim(),
-        file: fileData, // All files via S3 (including images)
+        file: attachmentData,
       });
 
       // Clear form
