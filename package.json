@@ -1,0 +1,21 @@
+{
+    "name": "chatapp-monorepo",
+    "version": "1.0.0",
+    "description": "Real-time Chat Application Monorepo",
+    "private": true,
+    "workspaces": [
+        "backend",
+        "frontend"
+    ],
+    "scripts": {
+        "dev:backend": "npm run dev --workspace=backend",
+        "dev:frontend": "npm run dev --workspace=frontend",
+        "start:backend": "npm start --workspace=backend",
+        "build:frontend": "npm run build --workspace=frontend",
+        "lint:frontend": "npm run lint --workspace=frontend",
+        "load-test": "npm run load-test --workspace=backend"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC"
+}

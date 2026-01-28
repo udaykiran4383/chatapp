@@ -183,3 +183,121 @@ export const sendMessage = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+export const addReaction = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { emoji } = req.body;
+    const userId = req.user._id;
+
+    if (!emoji) {
+      return res.status(400).json({ error: "Emoji is required" });
+    }
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ error: "Message not found" });
+    }
+
+    // Check if user already reacted with this emoji (toggle or replace?)
+    // Let's implement toggle logic: if exists, remove it. If not, add it.
+    // Or just "add unique".
+    // Most apps allow multiple reactions but usually one per emoji type per user.
+    // Let's assume one reaction per user per emoji?
+    // Or simpler: remove ANY existing reaction from this user and add new one (like Facebook)?
+    // Or Slack style: multiple reactions.
+    // Let's go with: User can toggle specific emoji.
+
+    const existingReactionIndex = message.reactions.findIndex(
+      (r) => r.userId.toString() === userId.toString() && r.emoji === emoji
+    );
+
+    if (existingReactionIndex > -1) {
+      // Remove reaction
+      message.reactions.splice(existingReactionIndex, 1);
+    } else {
+      // Add reaction
+      message.reactions.push({ userId, emoji });
+    }
+
+    await message.save();
+
+    // Populate user details for reactions
+    const updatedMessage = await Message.findById(messageId)
+      .populate("senderId", "fullName profilePic")
+      .populate("reactions.userId", "fullName profilePic");
+
+    // Emit socket event
+    const socketId = getReceiverSocketId(userId); // Not needed for broadcast
+    // Broadcast to chat room
+    io.to(`chat:${message.chatId}`).emit("messageReaction", updatedMessage);
+
+    res.status(200).json(updatedMessage);
+  } catch (error) {
+    console.error("Error in addReaction: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const deleteMessage = async (req, res) => {
+  try {
+    const { id: messageId } = req.params;
+    const userId = req.user._id;
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ error: "Message not found" });
+    }
+
+    if (message.senderId.toString() !== userId.toString()) {
+      return res.status(403).json({ error: "Not authorized to delete this message" });
+    }
+
+    await Message.findByIdAndDelete(messageId);
+
+    // Broadcast delete event
+    io.to(`chat:${message.chatId}`).emit("messageDeleted", messageId);
+
+    res.status(200).json({ message: "Message deleted successfully" });
+  } catch (error) {
+    console.error("Error in deleteMessage: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+export const editMessage = async (req, res) => {
+  try {
+    const { id: messageId } = req.params;
+    const { text } = req.body;
+    const userId = req.user._id;
+
+    if (!text) {
+      return res.status(400).json({ error: "Text is required" });
+    }
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ error: "Message not found" });
+    }
+
+    if (message.senderId.toString() !== userId.toString()) {
+      return res.status(403).json({ error: "Not authorized to edit this message" });
+    }
+
+    const updatedMessage = await Message.findByIdAndUpdate(
+      messageId,
+      { text, isEdited: true },
+      { new: true }
+    )
+      .populate("senderId", "fullName profilePic")
+      .populate("reactions.userId", "fullName profilePic");
+
+    // Broadcast update event
+    io.to(`chat:${message.chatId}`).emit("messageUpdated", updatedMessage);
+
+    res.status(200).json(updatedMessage);
+  } catch (error) {
+    console.error("Error in editMessage: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};

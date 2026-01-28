@@ -10,7 +10,22 @@ const MessageInput = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
-  const { sendMessage } = useChatStore();
+  const { sendMessage, sendTyping, sendStopTyping, selectedChat } = useChatStore();
+  const typingTimeoutRef = useRef(null);
+
+  const handleTyping = () => {
+    if (!selectedChat) return;
+
+    sendTyping(selectedChat._id);
+
+    // Clear previous timeout
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
+    // Set new timeout to stop typing after 2 seconds
+    typingTimeoutRef.current = setTimeout(() => {
+      sendStopTyping(selectedChat._id);
+    }, 2000);
+  };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -152,7 +167,10 @@ const MessageInput = () => {
             className="w-full input input-bordered rounded-lg input-sm sm:input-md"
             placeholder="Type a message..."
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => {
+              setText(e.target.value);
+              handleTyping();
+            }}
             disabled={isUploading}
           />
           <input

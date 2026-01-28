@@ -10,6 +10,7 @@ import bcrypt from "bcryptjs";
 import cloudinary from "../lib/cloudinary.js";
 
 export const signup = async (req, res) => {
+  // ... existing signup ...
   const { fullName, email, password } = req.body;
 
   try {
@@ -109,17 +110,24 @@ export const logout = async (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const { profilePic } = req.body;
+    const { profilePic, fullName } = req.body;
     const userId = req.user._id;
 
-    if (!profilePic) {
-      return res.status(400).json({ message: "Profile pic is required" });
+    if (!profilePic && !fullName) {
+      return res.status(400).json({ message: "Profile pic or name is required" });
     }
 
-    const uploadResponse = await cloudinary.uploader.upload(profilePic);
+    const updates = {};
+    if (fullName) updates.fullName = fullName;
+
+    if (profilePic) {
+      const uploadResponse = await cloudinary.uploader.upload(profilePic);
+      updates.profilePic = uploadResponse.secure_url;
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { profilePic: uploadResponse.secure_url },
+      updates,
       { new: true }
     );
 

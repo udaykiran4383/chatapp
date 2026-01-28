@@ -7,6 +7,23 @@ const messageSchema = new mongoose.Schema(
       ref: "Chat",
       required: true,
     },
+    reactions: [
+      {
+        userId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        emoji: {
+          type: String,
+          required: true,
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
     senderId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -14,6 +31,10 @@ const messageSchema = new mongoose.Schema(
     },
     text: {
       type: String,
+    },
+    isEdited: {
+      type: Boolean,
+      default: false,
     },
     image: {
       type: String,

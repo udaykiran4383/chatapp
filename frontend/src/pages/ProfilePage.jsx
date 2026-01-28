@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 const ProfilePage = () => {
   const { authUser, isUpdatingProfile, updateProfile } = useAuthStore();
   const [selectedImg, setSelectedImg] = useState(null);
+  const [name, setName] = useState(authUser?.fullName || "");
 
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
@@ -57,8 +58,7 @@ const ProfilePage = () => {
                   bg-base-content hover:scale-105
                   p-2 rounded-full cursor-pointer 
                   transition-all duration-200
-                  ${
-                    isUpdatingProfile ? "animate-pulse pointer-events-none" : ""
+                  ${isUpdatingProfile ? "animate-pulse pointer-events-none" : ""
                   }
                 `}
               >
@@ -86,9 +86,33 @@ const ProfilePage = () => {
                 <User className="w-4 h-4" />
                 Full Name
               </div>
-              <p className="px-4 py-2.5 bg-base-200 rounded-lg border">
-                {authUser?.fullName}
-              </p>
+              <form
+                className="flex gap-2"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!name.trim() || name === authUser.fullName) return;
+                  await toast.promise(
+                    updateProfile({ fullName: name }, { showToast: false }),
+                    {
+                      loading: "Updating name...",
+                      success: "Name updated successfully",
+                      error: "Failed to update name"
+                    }
+                  );
+                }}
+              >
+                <input
+                  type="text"
+                  className="px-4 py-2 bg-base-200 rounded-lg border w-full focus:outline-none focus:border-primary"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+                {name !== authUser.fullName && (
+                  <button type="submit" className="btn btn-primary btn-sm h-full" disabled={isUpdatingProfile}>
+                    Save
+                  </button>
+                )}
+              </form>
             </div>
 
             <div className="space-y-1.5">

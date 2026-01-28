@@ -11,6 +11,7 @@ export const useChatStore = create((set, get) => ({
   isChatsLoading: false,
   isUsersLoading: false,
   isMessagesLoading: false,
+  typingUsers: [],
   unreadCounts: {}, // { chatId: count }
 
   // Get all chats (DM + groups)
@@ -166,10 +167,10 @@ export const useChatStore = create((set, get) => ({
         chats: get().chats.map((chat) =>
           chat._id === newMessage.chatId
             ? {
-                ...chat,
-                lastMessage: newMessage,
-                updatedAt: newMessage.createdAt,
-              }
+              ...chat,
+              lastMessage: newMessage,
+              updatedAt: newMessage.createdAt,
+            }
             : chat
         ),
       });
@@ -218,10 +219,10 @@ export const useChatStore = create((set, get) => ({
           chats: get().chats.map((chat) =>
             chat._id === msg.chatId
               ? {
-                  ...chat,
-                  lastMessage: msg,
-                  updatedAt: msg.createdAt,
-                }
+                ...chat,
+                lastMessage: msg,
+                updatedAt: msg.createdAt,
+              }
               : chat
           ),
         });
@@ -238,6 +239,54 @@ export const useChatStore = create((set, get) => ({
         ),
       });
     });
+
+    // Listen for typing events
+    socket.on("userTyping", ({ chatId, userId }) => {
+      const { selectedChat, typingUsers } = get();
+      if (selectedChat?._id === chatId) {
+        set({ typingUsers: [...new Set([...typingUsers, userId])] });
+      }
+    });
+
+    socket.on("userStoppedTyping", ({ chatId, userId }) => {
+      const { selectedChat, typingUsers } = get();
+      if (selectedChat?._id === chatId) {
+        set({ typingUsers: typingUsers.filter((id) => id !== userId) });
+      }
+    });
+
+    // Listen for message reactions
+    socket.on("messageReaction", (updatedMessage) => {
+      const { messages, selectedChat } = get();
+      if (selectedChat?._id === updatedMessage.chatId) {
+        set({
+          messages: messages.map((msg) =>
+            msg._id === updatedMessage._id ? updatedMessage : msg
+          ),
+        });
+      }
+    });
+
+    // Listen for message deletion
+    socket.on("messageDeleted", (messageId) => {
+      const { messages } = get();
+      set({
+        messages: messages.filter((msg) => msg._id !== messageId),
+      });
+    });
+
+    // Listen for message updates (edit)
+    socket.on("messageUpdated", (updatedMessage) => {
+      const { messages, selectedChat } = get();
+      if (selectedChat?._id === updatedMessage.chatId) {
+        set({
+          messages: messages.map((msg) =>
+            msg._id === updatedMessage._id ? updatedMessage : msg
+          ),
+        });
+      }
+    });
+
   },
 
   unsubscribeFromMessages: () => {
@@ -246,7 +295,49 @@ export const useChatStore = create((set, get) => ({
       socket.off("newMessage");
       socket.off("missedMessages");
       socket.off("messageStatusUpdate");
+      socket.off("userTyping");
+      socket.off("userStoppedTyping");
+      socket.off("messageReaction");
+      socket.off("messageDeleted");
+      socket.off("messageUpdated");
     }
+  },
+
+  reactToMessage: async (messageId, emoji) => {
+    try {
+      await axiosInstance.post(`/messages/${messageId}/react`, { emoji });
+      // Optimistic update? Socket will handle it.
+    } catch (error) {
+      toast.error("Failed to add reaction");
+    }
+  },
+
+  deleteMessage: async (messageId) => {
+    try {
+      await axiosInstance.delete(`/messages/${messageId}`);
+      // Socket handles UI update
+    } catch (error) {
+      toast.error("Failed to delete message");
+    }
+  },
+
+  editMessage: async (messageId, text) => {
+    try {
+      await axiosInstance.patch(`/messages/${messageId}`, { text });
+      // Socket handles UI update
+    } catch (error) {
+      toast.error("Failed to edit message");
+    }
+  },
+
+  sendTyping: (chatId) => {
+    const socket = useAuthStore.getState().socket;
+    if (socket) socket.emit("typing", chatId);
+  },
+
+  sendStopTyping: (chatId) => {
+    const socket = useAuthStore.getState().socket;
+    if (socket) socket.emit("stopTyping", chatId);
   },
 
   setSelectedChat: (chat) => {

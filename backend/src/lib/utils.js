@@ -11,7 +11,7 @@ export const generateAccessToken = (userId) => {
 
 // Generate long-lived refresh token (30 days)
 export const generateRefreshToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_REFRESH_SECRET, {
+  return jwt.sign({ userId, salt: crypto.randomBytes(16).toString("hex") }, process.env.JWT_REFRESH_SECRET, {
     expiresIn: "30d", // 30 days
   });
 };

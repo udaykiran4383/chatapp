@@ -180,6 +180,15 @@ io.on("connection", async (socket) => {
       }
     });
 
+    // Handle typing events
+    socket.on("typing", (chatId) => {
+      socket.to(`chat:${chatId}`).emit("userTyping", { chatId, userId });
+    });
+
+    socket.on("stopTyping", (chatId) => {
+      socket.to(`chat:${chatId}`).emit("userStoppedTyping", { chatId, userId });
+    });
+
     socket.on("disconnect", async () => {
       activeSocketsGuage.dec();
       console.log("A user disconnected", socket.id);

@@ -1,5 +1,5 @@
 import { FileText, Download } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
@@ -7,11 +7,15 @@ import MessageSkeleton from "./skeletons/MessageSkeleton";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
 import { formatMessageTime } from "../lib/utils";
-import { Check, CheckCheck } from "lucide-react";
+import { Check, CheckCheck, Smile, MoreVertical, Edit2, Trash2 } from "lucide-react";
 import { axiosInstance } from "../lib/axios";
 import toast from "react-hot-toast";
 
 const ChatContainer = () => {
+  const [activeReactionId, setActiveReactionId] = useState(null);
+  const [editingMessageId, setEditingMessageId] = useState(null);
+  const [editText, setEditText] = useState("");
+
   const {
     messages,
     getMessages,
@@ -19,6 +23,10 @@ const ChatContainer = () => {
     selectedChat,
     subscribeToMessages,
     unsubscribeFromMessages,
+    typingUsers,
+    reactToMessage,
+    deleteMessage,
+    editMessage,
   } = useChatStore();
   const { authUser, socket } = useAuthStore();
   const messageEndRef = useRef(null);
@@ -139,7 +147,7 @@ const ChatContainer = () => {
           return (
             <div
               key={message._id}
-              className={`chat ${isSentByMe ? "chat-end" : "chat-start"}`}
+              className={`chat ${isSentByMe ? "chat-end" : "chat-start"} group relative`}
               ref={messageEndRef}
             >
               <div className="chat-image avatar">
@@ -191,12 +199,115 @@ const ChatContainer = () => {
                     </button>
                   </div>
                 )}
-                {message.text && <p>{message.text}</p>}
+                {message.text && (
+                  <p>
+                    {message.text}
+                    {message.isEdited && <span className="text-[10px] text-zinc-500 ml-1 italic">(edited)</span>}
+                  </p>
+                )}
+
+                {/* Reactions Display */}
+                {message.reactions && message.reactions.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1 -ml-1">
+                    {Object.entries(
+                      message.reactions.reduce((acc, r) => {
+                        acc[r.emoji] = (acc[r.emoji] || 0) + 1;
+                        return acc;
+                      }, {})
+                    ).map(([emoji, count]) => (
+                      <div key={emoji} className="badge badge-sm badge-ghost gap-1 cursor-pointer"
+                        onClick={() => reactToMessage(message._id, emoji)}>
+                        <span>{emoji}</span>
+                        <span className="text-[10px]">{count}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Reaction Button */}
+              <div className="chat-footer opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 mt-1">
+                <button
+                  className="btn btn-ghost btn-xs btn-circle"
+                  onClick={() => setActiveReactionId(activeReactionId === message._id ? null : message._id)}
+                >
+                  <Smile size={14} />
+                </button>
+
+                {/* Edit/Delete for own messages */}
+                {isSentByMe && (
+                  <div className="dropdown dropdown-top dropdown-end">
+                    <div tabIndex={0} role="button" className="btn btn-ghost btn-xs btn-circle">
+                      <MoreVertical size={14} />
+                    </div>
+                    <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-24 border border-base-300">
+                      <li>
+                        <button onClick={() => {
+                          setEditingMessageId(message._id);
+                          setEditText(message.text || "");
+                        }} className="text-xs">
+                          <Edit2 size={12} /> Edit
+                        </button>
+                      </li>
+                      <li>
+                        <button onClick={() => deleteMessage(message._id)} className="text-xs text-error">
+                          <Trash2 size={12} /> Delete
+                        </button>
+                      </li>
+                    </ul>
+                  </div>
+                )}
+
+                {/* Reaction Picker Popup */}
+                {activeReactionId === message._id && (
+                  <div className="absolute bottom-8 left-0 z-10 bg-base-100 p-1 rounded-full shadow-lg border border-base-300 flex gap-1 animate-in zoom-in duration-200">
+                    {["👍", "❤️", "😂", "😮", "😢", "😡"].map(emoji => (
+                      <button
+                        key={emoji}
+                        className="btn btn-ghost btn-xs btn-circle text-lg"
+                        onClick={() => {
+                          reactToMessage(message._id, emoji);
+                          setActiveReactionId(null);
+                        }}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* Edit Message Modal */}
+      {editingMessageId && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-base-100 p-6 rounded-lg w-full max-w-md">
+            <h3 className="font-bold text-lg mb-4">Edit Message</h3>
+            <textarea
+              className="textarea textarea-bordered w-full"
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+            />
+            <div className="modal-action">
+              <button className="btn btn-ghost" onClick={() => setEditingMessageId(null)}>Cancel</button>
+              <button className="btn btn-primary" onClick={() => {
+                editMessage(editingMessageId, editText);
+                setEditingMessageId(null);
+              }}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Typing Indicator */}
+      {typingUsers.length > 0 && (
+        <div className="px-4 pb-2 text-sm text-zinc-500 italic animate-pulse">
+          {typingUsers.length === 1 ? "Someone is typing..." : "Multiple people are typing..."}
+        </div>
+      )}
 
       <MessageInput />
     </div>

@@ -12,8 +12,31 @@ import { protectRoute } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-router.post("/signup", signup);
-router.post("/login", login);
+import { body } from "express-validator";
+import { validateRequest } from "../middleware/validator.middleware.js";
+
+router.post(
+  "/signup",
+  [
+    body("fullName").notEmpty().withMessage("Full name is required"),
+    body("email").isEmail().withMessage("Must be a valid email"),
+    body("password")
+      .isLength({ min: 6 })
+      .withMessage("Password must be at least 6 characters"),
+  ],
+  validateRequest,
+  signup
+);
+
+router.post(
+  "/login",
+  [
+    body("email").isEmail().withMessage("Must be a valid email"),
+    body("password").notEmpty().withMessage("Password is required"),
+  ],
+  validateRequest,
+  login
+);
 router.post("/logout", logout);
 router.post("/logout-all", protectRoute, logoutAll);
 
