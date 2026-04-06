@@ -58,6 +58,12 @@ const startServer = async () => {
 
     server.listen(PORT, () => {
       console.log("Server is running on PORT:" + PORT);
+      // Initialize self-ping script for Render to prevent sleep
+      if (process.env.NODE_ENV === "production") {
+        import("./scripts/pinger.js").catch((err) =>
+          console.error("Failed to load pinger script:", err)
+        );
+      }
     });
   } catch (error) {
     console.error("Failed to start server:", error);
