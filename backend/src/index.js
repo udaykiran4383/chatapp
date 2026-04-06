@@ -27,7 +27,10 @@ app.use(express.json({ limit: "2mb" }));
 app.use(cookieParser());
 app.use(
   cors({
-    origin: CLIENT_URL,
+    origin:
+      process.env.NODE_ENV === "production"
+        ? "https://udaychatapp.netlify.app"
+        : CLIENT_URL,
     credentials: true,
   })
 );

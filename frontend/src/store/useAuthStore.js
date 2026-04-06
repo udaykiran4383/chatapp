@@ -14,13 +14,18 @@ export const useAuthStore = create((set, get) => ({
   onlineUsers: [],
   socket: null,
 
-  checkAuth: async () => {
+  checkAuth: async (retries = 3) => {
     try {
       const res = await axiosInstance.get("/auth/check");
       set({ authUser: res.data });
       get().connectSocket();
     } catch (error) {
-      console.log("Error in Auth:");
+      console.log("Error in Auth:", error.message || error);
+      if (retries > 0) {
+        console.log(`Retrying auth check... (${retries} attempts left)`);
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        return get().checkAuth(retries - 1);
+      }
       set({ authUser: null });
     } finally {
       set({ isCheckingAuth: false });
